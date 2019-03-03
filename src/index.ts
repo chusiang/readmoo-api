@@ -158,20 +158,17 @@ async function listBooks () {
     headers: credential.getHeaders()
   })
 
-  // readingData.data
-  // readingData.included
   const bookData = readingData.data[0]
   const readerAPI = bookData.links.reader.match(/[^\?]+/)[0]
   const res = await axios.get(`${readerAPI}`, {
     headers: credential.getHeaders()
   })
 
-
   return readingData.included
 
-  const bookId = bookData.relationships.data.find(c => c.type === 'book').id
-  const book = readingData.included.find(include => include.id === bookId)
-  console.log(book)
+  // const bookId = bookData.relationships.data.find(c => c.type === 'book').id
+  // const book = readingData.included.find(include => include.id === bookId)
+  // console.log(book)
 }
 
 // TODO: typed parameter
