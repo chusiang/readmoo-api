@@ -194,11 +194,7 @@ async function downloadBook (bookId: string) {
   const bookMeta = await downloadEpubContent(opfUrl, opf, tmpBookDir)
   await downloadEpubAssets(bookMeta, navLink, tmpBookDir)
 
-  return { tmpBookDir, title: parseBookTitle(bookMeta) }
-}
-
-function parseBookTitle (bookMeta): string {
-  return bookMeta.package.metadata['dc:title']._text
+  return tmpBookDir
 }
 
 async function downloadEpubContainer (baseUrl: string, tmpBookDir: string) {
@@ -279,8 +275,8 @@ async function generateEpub (title: string, dir: string, outputFolder: string = 
 
 login(process.env.EMAIL, process.env.PASSWORD).then(async () => {
   const books = await listBooks()
-  const bookId = books[0].id
+  const { id: bookId, title } = books[0]
 
-  const { tmpBookDir, title } = await downloadBook(bookId)
+  const tmpBookDir = await downloadBook(bookId)
   await generateEpub(title, tmpBookDir)
 })
