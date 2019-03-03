@@ -12,9 +12,10 @@ import * as path from 'path'
 import * as os from 'os'
 import * as childProcess from 'child_process'
 
-import axios from 'axios'
+import axios, { AxiosResponse } from 'axios'
 import * as xmlConvert from 'xml-js'
 import * as queryString from 'querystring'
+import * as tempy from 'tempy'
 
 const requestOpt = {
   headers: {
@@ -34,6 +35,13 @@ interface ICredential {
   cloudFrontPolicy: string
   cloudFrontSignature: string
 }
+
+
+const cookieRegex = (str) => new RegExp(`${str}=[^;]+;`)
+
+const KEY_PAIR_ID_REGEX = cookieRegex('CloudFront-Key-Pair-Id')
+const POLICY_REGEX = cookieRegex('CloudFront-Policy')
+const SINATURE_REGEX = cookieRegex('CloudFront-Signature')
 
 class Credential {
   private credential: ICredential
@@ -78,6 +86,44 @@ class Credential {
     fs.writeFileSync(CREDENTIAL_PATH, JSON.stringify(this.credential, null, 2))
   }
 
+  private setAWSCredential (cookie: string) {
+    let m
+
+    m = cookie.match(KEY_PAIR_ID_REGEX)
+    if (m && m[0]) {
+      this.cloudFrontKeyPairId = m[0]
+    }
+
+    m = cookie.match(POLICY_REGEX)
+    if (m && m[0]) {
+      this.cloudFrontPolicy = m[0]
+    }
+
+    m = cookie.match(SINATURE_REGEX)
+    if (m && m[0]) {
+      this.cloudFrontSignature = m[0]
+    }
+  }
+
+  public saveCredentials (res: AxiosResponse) {
+    const cookies = res.headers['set-cookie'] || []
+    cookies.map(this.setAWSCredential.bind(this))
+    this.save()
+  }
+
+  public getHeaders () {
+    const cookies = [
+      this.readmoo,
+      this.cloudFrontKeyPairId,
+      this.cloudFrontPolicy,
+      this.cloudFrontSignature
+    ]
+
+    return {
+      Cookie: cookies.filter(Boolean).join(' ')
+    }
+  }
+
   private load () {
     try {
       return JSON.parse(fs.readFileSync(CREDENTIAL_PATH, 'utf-8'))
@@ -111,36 +157,88 @@ async function login (email: string, password: string) {
   }
 }
 
+async function listBooks () {
+  const { data: readingData } = await axios.get('https://new-read.readmoo.com/api/me/readings', {
+    headers: credential.getHeaders()
+  })
+
+  // readingData.data
+  // readingData.included
+  const bookData = readingData.data[0]
+  const readerAPI = bookData.links.reader.match(/[^\?]+/)[0]
+  const res = await axios.get(`${readerAPI}`, {
+    headers: credential.getHeaders()
+  })
+
+
+  return readingData.included
+
+  const bookId = bookData.relationships.data.find(c => c.type === 'book').id
+  const book = readingData.included.find(include => include.id === bookId)
+  console.log(book)
+}
+
+// TODO: typed parameter
+async function downloadBook (bookId: string) {
+  const response = await axios.get(`https://reader.readmoo.com/api/book/${bookId}/nav`, {
+    headers: credential.getHeaders()
+  })
+  const { data: bookData } = response
+  const { base, nav_dir, opf } = bookData
+  credential.saveCredentials(response)
+
+  const baseUrl = `https://reader.readmoo.com${base}`
+  const navLink = `https://reader.readmoo.com${nav_dir}`
+  const opfUrl = `${navLink}${opf}`
+
+  // start download all the data
+  const tmpBookDir = tempy.directory()
+
+  await downloadEpubContainer(baseUrl, tmpBookDir)
+  const bookMeta = await downloadEpubContent(opfUrl, opf, tmpBookDir)
+  await downloadEpubAssets(bookMeta, navLink, tmpBookDir)
+
+  return tmpBookDir
+}
+
 const baseLink = 'https://reader.readmoo.com/ebook/45/102045/96082/1_0/full'
 
-async function fetchContainer () {
-  const { data } = await axios.get(`${baseLink}/META-INF/container.xml`, requestOpt)
+async function downloadEpubContainer (baseUrl: string, tmpBookDir: string) {
+  const containerFileName = 'META-INF/container.xml'
+  const { data } = await axios.get(`${baseUrl}${containerFileName}`, {
+    headers: credential.getHeaders()
+  })
 
-  const filename = 'META-INF/container.xml'
-  const fn = path.join(__dirname, './book/', filename)
+  const fn = path.join(tmpBookDir, containerFileName)
   fs.ensureFileSync(fn)
   fs.writeFileSync(fn, data)
 }
 
-
-async function fetchContent () {
-  const { data } = await axios.get(`${baseLink}/OEBPS/content.opf`, requestOpt)
+async function downloadEpubContent (opfUrl: string, opfPath: string, tmpBookDir: string) {
+  const { data } = await axios.get(opfUrl, {
+    headers: credential.getHeaders()
+  })
   // write content
-  const fn = path.join(__dirname, './book/', 'OEBPS/content.opf')
+  const fn = path.join(tmpBookDir, 'OEBPS', opfPath)
   fs.ensureFileSync(fn)
   fs.writeFileSync(fn, data)
 
   const contentObject: any = xmlConvert.xml2js(data, { compact: true, ignoreComment: true })
-  const files = contentObject.package.manifest.item.map(it => it._attributes['href'])
+  return contentObject
+}
+
+// TODO: typed parameter
+async function downloadEpubAssets (bookMeta: any, navLink: string, tmpBookDir: string) {
+  const files = bookMeta.package.manifest.item.map(it => it._attributes['href'])
     .map(href => ({
-      link: `${baseLink}/OEBPS/${href}`,
+      link: `${navLink}${href}`,
       base: href
     }))
   await Promise.all(files.map(async ({ link, base }) => {
     const isImage = base.includes('jpg')
     const responseOpt = isImage ? { responseType: 'stream' } : {}
-    const { data } = await axios.get(link, {...requestOpt, ...responseOpt})
-    const filename = path.join(__dirname, './book/OEBPS/', base)
+    const { data } = await axios.get(link, { headers: credential.getHeaders() , ...responseOpt})
+    const filename = path.join(tmpBookDir, 'OEBPS', base)
     fs.ensureFileSync(filename)
     if (isImage) {
       data.pipe(fs.createWriteStream(filename))
@@ -150,7 +248,9 @@ async function fetchContent () {
   }))
 }
 
-// fetchContainer()
-// fetchContent()
+login(process.env.EMAIL, process.env.PASSWORD).then(async () => {
+  const books = await listBooks()
+  const bookId = books[0].id
 
-login(process.env.EMAIL, process.env.PASSWORD)
+  await downloadBook(bookId)
+})
