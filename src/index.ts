@@ -129,9 +129,9 @@ class Credential {
   }
 }
 
-const credential = new Credential()
+export const credential = new Credential()
 
-async function login (email: string, password: string) {
+export async function login (email: string, password: string) {
   const result = childProcess.spawnSync('curl', [
     '-X',
     'POST',
@@ -153,7 +153,18 @@ async function login (email: string, password: string) {
   }
 }
 
-async function listBooks () {
+export async function checkLogin () {
+  try {
+    await axios.get('https://new-read.readmoo.com/api/me/readings', {
+      headers: credential.getHeaders()
+    })
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+export async function listBooks () {
   const { data: readingData } = await axios.get('https://new-read.readmoo.com/api/me/readings', {
     headers: credential.getHeaders()
   })
@@ -172,7 +183,7 @@ async function listBooks () {
 }
 
 // TODO: typed parameter
-async function downloadBook (bookId: string) {
+export async function downloadBook (bookId: string) {
   const response = await axios.get(`https://reader.readmoo.com/api/book/${bookId}/nav`, {
     headers: credential.getHeaders()
   })
@@ -239,7 +250,7 @@ async function downloadEpubAssets (bookMeta: any, navLink: string, tmpBookDir: s
   }))
 }
 
-async function generateEpub (title: string, dir: string, outputFolder: string = downloadDir()) {
+export async function generateEpub (title: string, dir: string, outputFolder: string = downloadDir()) {
   return new Promise((resolve, reject) => {
 
     // create a file to stream archive data to.
