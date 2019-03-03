@@ -7,14 +7,107 @@
 
 require('dotenv').config()
 
-import axios from 'axios'
-import * as xmlConvert from 'xml-js'
 import * as fs from 'fs-extra'
 import * as path from 'path'
+import * as os from 'os'
+import * as childProcess from 'child_process'
+
+import axios from 'axios'
+import * as xmlConvert from 'xml-js'
+import * as queryString from 'querystring'
 
 const requestOpt = {
   headers: {
     Cookie: `CloudFront-Key-Pair-Id=${process.env.CLOUDFRONT_KEY_PAIR_ID}; CloudFront-Policy=${process.env.CLOUDFRONT_POLICY}; CloudFront-Signature=${process.env.CLOUDFRONT_SIGNATURE}`
+  }
+}
+
+const CREDENTIAL_PATH = path.join(os.homedir(), '.readmoo-cli', 'credentials.json')
+fs.ensureFileSync(CREDENTIAL_PATH)
+
+class ReadmooAPIError extends TypeError {}
+class LoginError extends ReadmooAPIError {}
+
+interface ICredential {
+  readmoo: string,
+  cloudFrontKeyPairId: string
+  cloudFrontPolicy: string
+  cloudFrontSignature: string
+}
+
+class Credential {
+  private credential: ICredential
+
+  constructor () {
+    this.credential = this.load()
+  }
+
+  get readmoo () {
+    return this.credential.readmoo
+  }
+
+  set readmoo (value: string) {
+    this.credential.readmoo = value
+  }
+
+  get cloudFrontKeyPairId () {
+    return this.credential.cloudFrontKeyPairId
+  }
+
+  set cloudFrontKeyPairId (value: string) {
+    this.credential.cloudFrontKeyPairId  = value
+  }
+
+  get cloudFrontPolicy () {
+    return this.credential.cloudFrontPolicy
+  }
+
+  set cloudFrontPolicy (value: string) {
+    this.credential.cloudFrontPolicy  = value
+  }
+
+  get cloudFrontSignature () {
+    return this.credential.cloudFrontSignature
+  }
+
+  set cloudFrontSignature (value: string) {
+    this.credential.cloudFrontSignature  = value
+  }
+
+  public save () {
+    fs.writeFileSync(CREDENTIAL_PATH, JSON.stringify(this.credential, null, 2))
+  }
+
+  private load () {
+    try {
+      return JSON.parse(fs.readFileSync(CREDENTIAL_PATH, 'utf-8'))
+    } catch (err) {
+      return {}
+    }
+  }
+}
+
+const credential = new Credential()
+
+async function login (email: string, password: string) {
+  const result = childProcess.spawnSync('curl', [
+    '-X',
+    'POST',
+    'https://member.readmoo.com/login',
+    '-H',
+    'Content-Type: application/x-www-form-urlencoded',
+    '-d',
+    queryString.stringify({ email, password }),
+    '-c',
+    '-'
+  ])
+
+  const match = result.stdout.toString().match(/readmoo\t(.+)/)
+  if (match && match[1]) {
+    credential.readmoo = `readmoo=${match[1]};`
+    credential.save()
+  } else {
+    throw new LoginError()
   }
 }
 
@@ -57,5 +150,7 @@ async function fetchContent () {
   }))
 }
 
-fetchContainer()
-fetchContent()
+// fetchContainer()
+// fetchContent()
+
+login(process.env.EMAIL, process.env.PASSWORD)
