@@ -11,6 +11,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@types/archiver": "^2.1.2",
     "@types/chai": "^4.1.7",
     "@types/form-data": "^2.2.1",
     "@types/fs-extra": "^5.0.5",
@@ -25,7 +26,9 @@
     "typescript": "^3.3.3333"
   },
   "dependencies": {
+    "archiver": "^3.0.0",
     "axios": "^0.18.0",
+    "downloads-folder": "^1.0.1",
     "form-data": "^2.3.3",
     "fs-extra": "^7.0.1",
     "querystring": "^0.2.0",

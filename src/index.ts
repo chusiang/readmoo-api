@@ -16,12 +16,8 @@ import axios, { AxiosResponse } from 'axios'
 import * as xmlConvert from 'xml-js'
 import * as queryString from 'querystring'
 import * as tempy from 'tempy'
-
-const requestOpt = {
-  headers: {
-    Cookie: `CloudFront-Key-Pair-Id=${process.env.CLOUDFRONT_KEY_PAIR_ID}; CloudFront-Policy=${process.env.CLOUDFRONT_POLICY}; CloudFront-Signature=${process.env.CLOUDFRONT_SIGNATURE}`
-  }
-}
+import * as archiver from 'archiver'
+import * as downloadDir from 'downloads-folder'
 
 const CREDENTIAL_PATH = path.join(os.homedir(), '.readmoo-cli', 'credentials.json')
 fs.ensureFileSync(CREDENTIAL_PATH)
@@ -198,10 +194,12 @@ async function downloadBook (bookId: string) {
   const bookMeta = await downloadEpubContent(opfUrl, opf, tmpBookDir)
   await downloadEpubAssets(bookMeta, navLink, tmpBookDir)
 
-  return tmpBookDir
+  return { tmpBookDir, title: parseBookTitle(bookMeta) }
 }
 
-const baseLink = 'https://reader.readmoo.com/ebook/45/102045/96082/1_0/full'
+function parseBookTitle (bookMeta): string {
+  return bookMeta.package.metadata['dc:title']._text
+}
 
 async function downloadEpubContainer (baseUrl: string, tmpBookDir: string) {
   const containerFileName = 'META-INF/container.xml'
@@ -248,9 +246,41 @@ async function downloadEpubAssets (bookMeta: any, navLink: string, tmpBookDir: s
   }))
 }
 
+async function generateEpub (title: string, dir: string, outputFolder: string = downloadDir()) {
+  return new Promise((resolve, reject) => {
+
+    // create a file to stream archive data to.
+    var output = fs.createWriteStream(path.join(outputFolder, `${title}.epub`))
+    var archive = archiver('zip', {
+      zlib: { level: 0 }
+    })
+    output.on('end', function() {
+      resolve()
+    })
+
+    archive.on('warning', function(err) {
+      if (err.code === 'ENOENT') {
+        // log warning
+      } else {
+        // throw error
+        reject(err)
+      }
+    })
+
+    archive.on('error', function (err) {
+      reject(err)
+    })
+
+    archive.pipe(output)
+    archive.directory(dir, false)
+    archive.finalize()
+  })
+}
+
 login(process.env.EMAIL, process.env.PASSWORD).then(async () => {
   const books = await listBooks()
   const bookId = books[0].id
 
-  await downloadBook(bookId)
+  const { tmpBookDir, title } = await downloadBook(bookId)
+  await generateEpub(title, tmpBookDir)
 })
