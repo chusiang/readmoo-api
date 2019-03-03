@@ -22,8 +22,6 @@ const baseLink = 'https://reader.readmoo.com/ebook/45/102045/96082/1_0/full'
 
 async function fetchContainer () {
   const { data } = await axios.get(`${baseLink}/META-INF/container.xml`, requestOpt)
-  const containerObject: any = xmlConvert.xml2js(data, { compact: true, ignoreComment: true })
-  const rootfile = containerObject.container.rootfiles.rootfile
 
   const filename = 'META-INF/container.xml'
   const fn = path.join(__dirname, './book/', filename)
