@@ -12,9 +12,11 @@
   "license": "MIT",
   "devDependencies": {
     "@types/archiver": "^2.1.2",
+    "@types/bluebird": "^3.5.26",
     "@types/chai": "^4.1.7",
     "@types/form-data": "^2.2.1",
     "@types/fs-extra": "^5.0.5",
+    "@types/inquirer": "0.0.44",
     "@types/jest": "^24.0.9",
     "@types/node": "^11.10.4",
     "@types/tempy": "^0.2.0",
@@ -28,9 +30,11 @@
   "dependencies": {
     "archiver": "^3.0.0",
     "axios": "^0.18.0",
+    "bluebird": "^3.5.3",
     "downloads-folder": "^1.0.1",
     "form-data": "^2.3.3",
     "fs-extra": "^7.0.1",
+    "inquirer": "^6.2.2",
     "querystring": "^0.2.0",
     "tempy": "^0.2.1",
     "xml-js": "^1.6.11"

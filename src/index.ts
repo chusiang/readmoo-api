@@ -19,7 +19,7 @@ import * as tempy from 'tempy'
 import * as archiver from 'archiver'
 import * as downloadDir from 'downloads-folder'
 
-const CREDENTIAL_PATH = path.join(os.homedir(), '.readmoo-cli', 'credentials.json')
+const CREDENTIAL_PATH = path.join(os.homedir(), '.readmoo-api', 'credentials.json')
 fs.ensureFileSync(CREDENTIAL_PATH)
 
 class ReadmooAPIError extends TypeError {}
@@ -155,10 +155,14 @@ export async function login (email: string, password: string) {
 
 export async function checkLogin () {
   try {
-    await axios.get('https://new-read.readmoo.com/api/me/readings', {
+    const res = await axios.get('https://new-read.readmoo.com/api/me/readings', {
       headers: credential.getHeaders()
     })
-    return true
+    if (res.data.status === 'error_login') {
+      return false
+    } else {
+      return true
+    }
   } catch (error) {
     return false
   }
@@ -250,16 +254,14 @@ async function downloadEpubAssets (bookMeta: any, navLink: string, tmpBookDir: s
   }))
 }
 
-export async function generateEpub (title: string, dir: string, outputFolder: string = downloadDir()) {
+export async function generateEpub (title: string, dir: string, outputFolder: string = downloadDir()): Promise<string> {
   return new Promise((resolve, reject) => {
 
+    const outputFile = path.join(outputFolder, `${title}.epub`)
     // create a file to stream archive data to.
-    var output = fs.createWriteStream(path.join(outputFolder, `${title}.epub`))
+    var output = fs.createWriteStream(outputFile)
     var archive = archiver('zip', {
       zlib: { level: 0 }
-    })
-    output.on('end', function() {
-      resolve()
     })
 
     archive.on('warning', function(err) {
@@ -278,13 +280,6 @@ export async function generateEpub (title: string, dir: string, outputFolder: st
     archive.pipe(output)
     archive.directory(dir, false)
     archive.finalize()
+    return resolve(outputFile)
   })
 }
-
-login(process.env.EMAIL, process.env.PASSWORD).then(async () => {
-  const books = await listBooks()
-  const { id: bookId, title } = books[0]
-
-  const tmpBookDir = await downloadBook(bookId)
-  await generateEpub(title, tmpBookDir)
-})
