@@ -30,7 +30,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
   }
 
   const booksData = await listBooks()
-  // const booksData = (await listBooks()).filter(b => b.id !== '210100035000101')
+
   const { books: selectedBooks } = await inquirer.prompt({
     type: 'checkbox',
     name: 'books',
