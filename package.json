@@ -6,7 +6,11 @@
   "scripts": {
     "test": "jest --setupFiles dotenv/config",
     "build": "tsc",
-    "build:watch": "tsc -w"
+    "build:watch": "tsc -w",
+    "postinstall": "npm run build"
+  },
+  "bin": {
+    "readmoo-dl": "out/cli.js"
   },
   "author": "",
   "license": "MIT",
