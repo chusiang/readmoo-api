@@ -10,7 +10,8 @@
     "sourceMap": true,
     "outDir": "./out",
     "types": [
-      "node"
+      "node",
+      "jest"
     ]
   },
   "include": [
