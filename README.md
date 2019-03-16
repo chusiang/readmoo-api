@@ -5,7 +5,7 @@
 ## Installation & Usage
 
 ```bash
-npm i Yukaii/readmoo-api -g
+npm i Yukaii/readmoo-api#v1.0.0 -g
 readmoo-dl
 ```
 
