@@ -132,25 +132,27 @@ class Credential {
 export const credential = new Credential()
 
 export async function login (email: string, password: string) {
-  const result = childProcess.spawnSync('curl', [
-    '-X',
-    'POST',
-    'https://member.readmoo.com/login',
-    '-H',
-    'Content-Type: application/x-www-form-urlencoded',
-    '-d',
-    queryString.stringify({ email, password }),
-    '-c',
-    '-'
-  ])
+  const loginRes = await axios.head('https://member.readmoo.com/login/')
+  const cookies = loginRes.headers['set-cookie'] || []
+  const readmooCookie = cookies.find(c => c.match(/readmoo=([^;]+)/))
+  const match = readmooCookie && readmooCookie.match(/readmoo=([^;]+)/)
+  // match = loginRes.headers.get('set-cookie').match(/readmoo=([^;]+)/)
 
-  const match = result.stdout.toString().match(/readmoo\t(.+)/)
   if (match && match[1]) {
     credential.readmoo = `readmoo=${match[1]};`
     credential.save()
   } else {
     throw new LoginError()
   }
+
+  const formData = queryString.stringify({ email, password })
+
+  await axios.post('https://member.readmoo.com/login/', formData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      ...credential.getHeaders()
+    }
+  })
 }
 
 export async function checkLogin () {
