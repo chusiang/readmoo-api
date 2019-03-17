@@ -9,7 +9,7 @@ npm i Yukaii/readmoo-api#v1.0.0 -g
 readmoo-dl
 ```
 
-Fill your login email & passport, and then:
+Fill your login email & password, and then:
 
 ![demo](docs/images/readmoo-api.gif)
 
