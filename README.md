@@ -4,12 +4,19 @@
 
 ## Installation & Usage
 
+Install with npm global option:
+
 ```bash
 npm i Yukaii/readmoo-api#v1.0.0 -g
+```
+
+And type the command `readmoo-dl`:
+
+```bash
 readmoo-dl
 ```
 
-Fill your login email & password, and then:
+The command will ask for your login email & password, enter then choose books to download:
 
 ![demo](docs/images/readmoo-api.gif)
 
