@@ -44,6 +44,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         }
         catch (e) {
             console.error(`下載 "${title}" 失敗！`);
+            console.error(e);
             return;
         }
     }));
